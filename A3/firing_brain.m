@@ -12,6 +12,7 @@ function result = firing_brain(N, t_steps, graphics, ptime)
     grid = boundary(grid); % apply periodic boundary
 
     mid = ceil(N / 2); % for plotting the grid
+    axis_lim = [-(mid+1+mod(N, 2))*0.1 (mid+2)*0.1 -(mid+2)*0.1 (mid+1+mod(N, 2))*0.1];
     if(graphics == 1)
         pause on
         plot_result(grid);
@@ -62,7 +63,7 @@ function result = firing_brain(N, t_steps, graphics, ptime)
         plot(resting_x, resting_y, 'o', 'MarkerSize', 12, 'Color', '#0072BD'); % not filled
         plot(firing_x, firing_y, '.', 'MarkerSize', 40, 'Color', '#77AC30'); % green
         hold off
-        axis([-(N+1)*0.1 (N+1)*0.1 -(N+1)*0.1 (N+1)*0.1]);
+        axis(axis_lim);
         set(gca,'xtick',[]);
         set(gca,'ytick',[]);
     end
