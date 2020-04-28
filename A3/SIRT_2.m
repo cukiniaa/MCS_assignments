@@ -1,6 +1,6 @@
-% states: S (0), I(1), R(2), T(3)
-
-function result=SIRT_2(N, t_steps,d,gamma,graphics,ptime)
+% states: S (0), E(1), I(2), R(3)
+% S (susceptible) -> E (exposed, infected but not spreading yet) -> I (infectious, and spread) -> R
+function result=SIRT_2(N, t_steps,d,gamma,kappa, beta,graphics,ptime)
 
     %N:number of Individuals
     %t_steps: Number of Simulations
@@ -9,12 +9,12 @@ function result=SIRT_2(N, t_steps,d,gamma,graphics,ptime)
     %gamma: An infected becomes a transmitter (T) with probability 1-gamma
     %graphics: if enable plot then 1 otherwise 0
     %ptime - how long a step should be displayed on the plot
-    %example : SIRT_2(4,10,0.2,0.4,1,1)
+    %example : SIRT_2(4,10,0.2,0.4,0.4,0.4,1,1)
     
     ind=(2:N+1); %the actual cells
     grid=zeros(N+2);
     new=zeros(N+2);
-    grid(ind,ind)=sprand(N,N,d)~=0; 
+    grid(ind,ind)=2*(rand(N) < d); 
     grid=boundary(grid); %apply boundary 
     
     global mid;
@@ -25,32 +25,25 @@ function result=SIRT_2(N, t_steps,d,gamma,graphics,ptime)
         plot_result(grid);
     end
 
-    
-
     for t=1:t_steps
-        IN=Infected_neighbours(grid) ;%take the infected neighbours of each cell
-        T=sprand(N,N,gamma)~=0;
-        R=(grid(ind,ind)==1).*(T); %recovered (R)
-        Tr=2*(grid(ind,ind)==1).*(~T ); %transmitted (T)
-        new(ind,ind)=grid(ind,ind)+R+Tr; %update the (R) ones to be 2 and (T) to be 3on the grid
-        new(ind,ind)=new(ind,ind)+(grid(ind,ind)==0).* (IN(ind,ind)==2); %change S to I if there are exactly 2 (I) neighbours
-        new=boundary(new); %apply boundary
-        grid=new; %update grid
+        IN=Infected_neighbours(grid); %take the infected (2) neighbours of each cell
+        I_R = (grid(ind,ind) == 2).*(rand(N) < gamma); % from infectious (I) to recovered (R)
+        E_I = (grid(ind,ind) == 1).*(rand(N) < kappa); % are (E) now -> the become (I) 
+        new(ind,ind) = grid(ind,ind) + I_R + E_I; % update the (I) to be (R) and (E) to be (I) the grid
+        new(ind,ind) = new(ind,ind) + (grid(ind,ind) == 0) .* (IN(ind,ind) > 2) .* (rand(N) < beta); % change S to I if there are more than 1 (I) neighbours
+        new = boundary(new); % apply boundary
+        grid=new; % update grid
         if(graphics == 1)
             pause(ptime);
             plot_result(grid);
         end
-    
     end
 
-    result=grid(ind,ind)
-
-
-
+    result=grid(ind,ind);
 
     function IN=Infected_neighbours(M)
-        I=(M==1);
-        IN=zeros(N+2);
+        I = (M==2);
+        IN = zeros(N+2);
         IN(ind,ind)=  I(1:end-2, 2:end-1) + I(3:end, 2:end-1) ... % up and down
                     + I(2:end-1, 1:end-2) + I(2:end-1, 3:end) ... % left and right
                     + I(1:end-2, 1:end-2) + I(1:end-2, 3:end) ... % left-up and right-up
@@ -74,15 +67,15 @@ function result=SIRT_2(N, t_steps,d,gamma,graphics,ptime)
 
     function plot_result(grid)
         M = grid(ind, ind);
-        [I_x, I_y] = get_coords(M == 1);
+        [I_x, I_y] = get_coords(M == 2);
         [S_x, S_y] = get_coords(M == 0);
-        [R_x, R_y] = get_coords(M == 2);
-        [T_x, T_y] = get_coords(M == 3);
-        plot(I_x, I_y, '.', 'MarkerSize', 40, 'Color', '#0072BD'); % blue
+        [R_x, R_y] = get_coords(M == 3);
+        [E_x, E_y] = get_coords(M == 1);
+        plot(I_x, I_y, '.', 'MarkerSize', 40, 'Color', 'red'); % red
         hold on
-        plot(S_x, S_y, 'o', 'MarkerSize', 12, 'Color', '#0072BD'); % not filled
+        plot(S_x, S_y, '.', 'MarkerSize', 40, 'Color', 'blue'); % blue
         plot(R_x, R_y, '.', 'MarkerSize', 40, 'Color', '#77AC30'); % green
-        plot(T_x, T_y, '.', 'MarkerSize', 40, 'Color', '#7E2F8E'); % Transmitter
+        plot(E_x, E_y, '.', 'MarkerSize', 40, 'Color', '#D95319'); % orange
         hold off
         axis(axis_lim);
         set(gca,'xtick',[]);
@@ -94,8 +87,4 @@ function result=SIRT_2(N, t_steps,d,gamma,graphics,ptime)
         y = (mid - rx) * 0.1;
         x = (ry - mid) * 0.1;
     end
-
-    
-
-    
 end

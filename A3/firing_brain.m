@@ -1,24 +1,31 @@
-function result = firing_brain(N, t_steps, graphics, ptime)
+function [result, f_cells] = firing_brain(N, t_steps, graphics, ptime, A)
 % N - size of the problem
 % t_steps - number of steps
 % graphics - if enable plot then 1 otherwise 0
 % ptime - how long a step should be displayed on the plot
+% A - a matrix at time 0, if not specified, a random matrix will be chosen
 % example: firing_brain(40, 100, 1, 1);
 % states: resting (0), ready (1), firing (2)
 
     grid = ones(N+2); % all neurons are ready, there's a padding for periodic boundaries
     ind = (2:N+1); % indices of actual cells
-    grid(ind,ind) = ones(N) + (rand(N) < 0.3); % choose firing
+    if nargin < 5 || isempty(A)
+        grid(ind,ind) = ones(N) + (rand(N) < 0.3); % choose firing cells at random
+    else
+        grid(ind,ind) = A;
+    end
     grid = boundary(grid); % apply periodic boundary
-
+    f_cells = zeros(t_steps+1, 1);
+    
     mid = ceil(N / 2); % for plotting the grid
-    axis_lim = [-(mid+1+mod(N, 2))*0.1 (mid+2)*0.1 -(mid+2)*0.1 (mid+1+mod(N, 2))*0.1];
+    axis_lim = [-(mid+mod(N, 2))*0.1 (mid+1)*0.1 -(mid+1)*0.1 (mid+mod(N, 2))*0.1];
     if(graphics == 1)
-        pause on
+        pause on1
         plot_result(grid);
     end
 
     for t=1:t_steps
+        f_cells(t) = firing_elements(grid);
         FN = firing_neighbours(grid); % matrix of count of firing neighbours for each cell
         new = grid + (grid ~= 1) .* ones(N+2); % update to obtain resting (0) -> ready (1), firing will turn to 3
         new = (new == 1); % keep only old and new ready, firing will turn to resting (0)
@@ -30,7 +37,8 @@ function result = firing_brain(N, t_steps, graphics, ptime)
             plot_result(grid);
         end
     end
-
+      
+    f_cells(t_steps+1) = firing_elements(grid);
     result = grid(ind, ind);
 
     function M = boundary(M)
@@ -53,6 +61,11 @@ function result = firing_brain(N, t_steps, graphics, ptime)
                 + F(3:end, 1:end-2) + F(3:end, 3:end); % left-down and right-down
     end
 
+    function counter = firing_elements(grid)
+       F = (grid(ind,ind) == 2);
+       counter = nnz(F);
+    end
+
     function plot_result(grid)
         M = grid(ind, ind);
         [ready_x, ready_y] = get_coords(M == 1);
@@ -66,6 +79,7 @@ function result = firing_brain(N, t_steps, graphics, ptime)
         axis(axis_lim);
         set(gca,'xtick',[]);
         set(gca,'ytick',[]);
+        set(gca,'Visible','off')
     end
 
     function [x, y] = get_coords(bin_M)
