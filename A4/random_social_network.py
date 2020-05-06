@@ -38,14 +38,14 @@ class Draw:
         self.G = G
         self.pos = nx.spring_layout(G)  # to nicely plot the population
 
-    def plot_population(self):
+    def plot_population(self, state):
         nx.draw_networkx_nodes(self.G, self.pos,
-                               nodelist=infected_nodes(self.G),
+                               nodelist=infected_nodes(state, self.G.nodes()),
                                node_color='r',
                                node_size=100,
                                alpha=0.8)
         nx.draw_networkx_nodes(self.G, self.pos,
-                               nodelist=susceptible_nodes(self.G),
+                               nodelist=susceptible_nodes(state, self.G.nodes()),
                                node_color='b',
                                node_size=100,
                                alpha=0.8)
@@ -109,5 +109,6 @@ plt.show()
 
 # To plot a population:
 # draw_G = Draw(G)
-# draw_G.plot_population()
+# figure(1)  # use different figures to compare states of the population
+# draw_G.plot_population(state)
 # plt.show()
