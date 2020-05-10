@@ -1,6 +1,6 @@
 % states: S (0), E(1), I(2), R(3)
 % S (susceptible) -> E (exposed, infected but not spreading yet) -> I (infectious, and spread) -> R
-function result=SIRT_2(N, t_steps,d,gamma,kappa, beta,graphics,ptime)
+function [result, infected]=SIRT_2(N, t_steps,d,gamma,kappa, beta,graphics,ptime)
 
     %N:number of Individuals
     %t_steps: Number of Simulations
@@ -14,8 +14,10 @@ function result=SIRT_2(N, t_steps,d,gamma,kappa, beta,graphics,ptime)
     ind=(2:N+1); %the actual cells
     grid=zeros(N+2);
     new=zeros(N+2);
-    grid(ind,ind)=2*(rand(N) < d); 
+    grid(ind,ind)=2*(rand(N) < d);
     grid=boundary(grid); %apply boundary 
+    
+    infected = zeros(1, t_steps+1);
     
     global mid;
     mid = ceil(N / 2); % for plotting the grid
@@ -26,20 +28,22 @@ function result=SIRT_2(N, t_steps,d,gamma,kappa, beta,graphics,ptime)
     end
 
     for t=1:t_steps
-        IN=Infected_neighbours(grid); %take the infected (2) neighbours of each cell
+        infected(t) = nnz(grid(ind,ind) == 2);
+        IN=Infected_neighbours(grid); % take the infected (2) neighbours of each cell
         I_R = (grid(ind,ind) == 2).*(rand(N) < gamma); % from infectious (I) to recovered (R)
-        E_I = (grid(ind,ind) == 1).*(rand(N) < kappa); % are (E) now -> the become (I) 
+        E_I = (grid(ind,ind) == 1).*(rand(N) < kappa); % are (E) now -> then become (I) 
         new(ind,ind) = grid(ind,ind) + I_R + E_I; % update the (I) to be (R) and (E) to be (I) the grid
-        new(ind,ind) = new(ind,ind) + (grid(ind,ind) == 0) .* (IN(ind,ind) > 2) .* (rand(N) < beta); % change S to I if there are more than 1 (I) neighbours
+        new(ind,ind) = new(ind,ind) + (grid(ind,ind) == 0) .* (rand(N) < (beta / 8) .* IN(ind, ind)); % S becomes infected
         new = boundary(new); % apply boundary
-        grid=new; % update grid
+        grid = new; % update grid
         if(graphics == 1)
             pause(ptime);
             plot_result(grid);
         end
     end
 
-    result=grid(ind,ind);
+    infected(t_steps+1) = nnz(grid(ind,ind) == 2);
+    result = grid(ind,ind);
 
     function IN=Infected_neighbours(M)
         I = (M==2);
@@ -54,7 +58,6 @@ function result=SIRT_2(N, t_steps,d,gamma,kappa, beta,graphics,ptime)
 
 
     function M = boundary(M)
-        %global N;
         M(1,:) = M(N+1, :);
         M(N+2,:) = M(2,:);
         M(:,1) = M(:,N+1);
