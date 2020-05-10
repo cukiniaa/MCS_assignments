@@ -1,4 +1,9 @@
 function [Inf]=gama_p(g,pr)
+ % g: An infected individual recovers with propability g
+ % pr : Probability of Infection in Initial state
+ % example : I=gama_p(0.3, 0.6);
+ % return : Infectious on the last day of simulation
+ 
  N=100; 
  T=100; 
  I=1;
@@ -30,7 +35,7 @@ for t=1:T
             if x<g %infected becomes S with prob g
                 pnew(i)=S;
             
-            else
+            else 
                 pnew(i)=I; %otherwise stays infected
             end
         end

@@ -35,13 +35,14 @@ end
 
 %figure
 hold on
-mp1=plot(p1);
-mp2=plot(p2);
-mp3=plot(p3);
-mp4=plot(p4);
+mp1=plot(p1,'LineWidth', 2);
+mp2=plot(p2,'LineWidth', 2);
+mp3=plot(p3,'LineWidth', 2);
+mp4=plot(p4,'LineWidth', 2);
 xlabel('');
 ylabel('propability of the disease dying out')
 hold off
+set(gca,'FontSize',18);
 h = [mp1(1);mp2;mp3(1);mp4];
 legend(h,'gamma=0.6','gamma=0.5','gamma=0.4','gamma=0.3');
 

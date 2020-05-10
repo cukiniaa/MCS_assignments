@@ -1,4 +1,9 @@
 function [P]=gama(g)
+ % g: An infected individual recovers with propability g
+ % example : p=gama(0.3);
+ % return : List containing the probability of the disese spreading in each
+ % time step
+ 
  N=100; %number of individuals
  T=100; %time interval
  I=1; %infected
