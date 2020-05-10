@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from random import sample, random
 import math
 import numpy as np
+import collections
 
 n = 5000
 p = 0.0016
@@ -15,8 +16,19 @@ G = nx.fast_gnp_random_graph(n, p)
 avg_deg = 2 * nx.number_of_edges(G) / nx.number_of_nodes(G)
 print("Average degree:", avg_deg)
 
-# plt.plot(nx.degree_histogram(G))
-# plt.show()
+def degree_histogram(G):
+    degree_sequence = sorted([d for n, d in G.degree()],
+                             reverse=True)  # degree sequence
+    degreeCount = collections.Counter(degree_sequence)
+    deg, cnt = zip(*degreeCount.items())
+    plt.figure(1)
+    plt.bar(deg, cnt, width=0.80, color='b')
+    plt.title("Degree Histogram")
+    plt.ylabel("Number of nodes")
+    plt.xlabel("Degree")
+    plt.draw()
+
+degree_histogram(G)
 
 # ########### Task 2 ############ #
 
@@ -87,7 +99,9 @@ last_day_stats = np.zeros(len(p_values))
 
 state0 = np.zeros(n)
 infected = sample(list(G.nodes()), I_0_count)
-state0[infected] = 1
+state0[infected] = 1 # set 100 random individuals as infected
+
+plt.figure(2)
 
 for i, p_const in enumerate(p_values):
     state = state0.copy()
@@ -99,11 +113,13 @@ for i, p_const in enumerate(p_values):
 plt.xlabel('Time steps')
 plt.ylabel('Number of infected')
 plt.legend()
+plt.draw()
 
-plt.figure(2)
+plt.figure(3)
 plt.plot([r/p for p in p_values], last_day_stats)
 plt.xlabel('r/p')
 plt.ylabel('Number of infected')
+plt.draw()
 
 plt.show()
 
