@@ -5,8 +5,8 @@ import math
 import numpy as np
 import collections
 
+# Code ready to run
 # susceptible (0), infected (1)
-
 
 class Draw:
     def __init__(self, G):
