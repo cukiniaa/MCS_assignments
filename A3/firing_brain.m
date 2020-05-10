@@ -1,11 +1,20 @@
 function [result, f_cells] = firing_brain(N, t_steps, graphics, ptime, A)
-% N - size of the problem
-% t_steps - number of steps
-% graphics - if enable plot then 1 otherwise 0
-% ptime - how long a step should be displayed on the plot
-% A - a matrix at time 0, if not specified, a random matrix will be chosen
-% example: firing_brain(40, 100, 1, 1);
-% states: resting (0), ready (1), firing (2)
+% FIRING_BRAIN simulate a 2D automaton of brain cells,
+% with states: resting (0), ready (1), firing (2)
+% run: firing_brain(40, 100, 1, 1);
+%
+% Parameters:
+%   N - size of the problem
+%   t_steps - number of steps
+%   graphics - if enable plot then 1 otherwise 0
+%   ptime - how long a step should be displayed on the plot
+%   A - a matrix at time 0, if not specified, a random matrix
+%       will be chosen (optional)
+% 
+% Returns:
+%   result - state of the automaton after t_steps
+%   f_cells - array of counted firing cells for each time step
+%
 
     grid = ones(N+2); % all neurons are ready, there's a padding for periodic boundaries
     ind = (2:N+1); % indices of actual cells
