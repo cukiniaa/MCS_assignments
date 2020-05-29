@@ -146,7 +146,7 @@ def painter_play(rules, room):
     # %normalise score by time
     score = score/t
 
-    return score, xpos, ypos,  # env
+    return score, xpos, ypos, env
 
 
 # test_room = np.zeros((8, 7))

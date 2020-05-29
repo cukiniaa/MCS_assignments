@@ -9,10 +9,10 @@ def initialize_population(P):
 
 
 def individual_fitness(chromosome, room):
-    n_tries = 10
+    n_tries = 20
     fitness = 0
     for i in range(0, n_tries):
-        f, _, _ = painter_play(chromosome, room)
+        f = painter_play(chromosome, room)[0]
         fitness += f
     return fitness / n_tries
 
@@ -40,13 +40,19 @@ def select(chromosomes, fitness):
     return new_generation
 
 
-def crossover(chromosomes, miu_c):
-    P = chromosomes.shape[1]
-    for i in range(0, P - P % 2, 2):  # mutation for parents i, i+1
-        if np.random.random() > miu_c:
-            continue
+def crossover(parents, miu_c):
+    P = parents.shape[1]
+    new_generation = np.zeros((54, P))
+    for i in range(0, P - P % 2, 2):
+        [p1, p2] = np.random.randint(0, P, 2)
+        if np.random.random() > miu_c:  # no crossover
+            new_generation[:, i] = parents[:, p1]
+            new_generation[:, i+1] = parents[:, p2]
         ind = np.random.randint(0, 54)  # swap elements starting from ind
-        chromosomes[ind:, i], chromosomes[ind:, i+1] = np.copy(chromosomes[ind:, i+1]), np.copy(chromosomes[ind:, i])
+        new_generation[ind:, i] = parents[ind:, p1]
+        new_generation[:ind, i] = parents[:ind, p2]
+        new_generation[ind:, i+1] = parents[ind:, p2]
+        new_generation[:ind, i+1] = parents[:ind, p1]
 
 
 def mutation(chromosomes, miu_m):
@@ -61,28 +67,45 @@ def mutation(chromosomes, miu_m):
         chromosomes[ind][i] = new_val
 
 
+def decorated_room(N, M, alpha=0.125):
+    # N, M - shape of the room
+    # alpha - the probablity of adding a furniture
+    return np.random.choice([0, 1], (N, M), p=[1-alpha, alpha])
+
+
 P = 50  # population size
 room = np.zeros((20, 40))  # room to paint
 steps = 200  # number of generations
-miu_c = 0.2  # probability of a crossover
-miu_m = 0.2  # probability of a mutation
+miu_c = 0.7  # probability of a crossover
+miu_m = 0.02  # probability of a mutation
 
 best_fitness = 0
 best_individual = None
+avg_fitness = np.zeros(steps)
 
-population = initialize_population(P)
+generation = initialize_population(P)
 for t in range(0, steps):
-    fitness = population_fitness(population, room)
+    fitness = population_fitness(generation, room)
+    avg_fitness[t] = np.average(fitness)
     ind = np.argmax(fitness)
-    print("Best fitness:", fitness[ind])
+    if (t % 10 == 0):
+        print("Best fitness:", fitness[ind])
     if fitness[ind] > best_fitness:
         best_fitness = fitness[ind]
-        best_individual = np.copy(population[:, ind])
-    population = select(population, fitness)
-    crossover(population, miu_c)
-    mutation(population, miu_m)
+        best_individual = np.copy(generation[:, ind])
+    generation = select(generation, fitness)
+    crossover(generation, miu_c)
+    mutation(generation, miu_m)
 
-print("\nBest fitness overall:", best_fitness)
-print("Testing the best individual:")
-for i in range(0, 5):
-    print("Fitness:", painter_play(best_individual, room)[0])
+best_ind_fn = "best_individual.npy"
+avg_fitness_fn = "avg_fitness.npy"
+generation_fn = "generation.npy"
+room_fn = "room.npy"
+
+print("Saving results in %s, %s, %s, %s" %
+      (best_ind_fn, avg_fitness_fn, generation_fn, room_fn))
+
+np.save(best_ind_fn, best_individual)
+np.save(avg_fitness_fn, avg_fitness)
+np.save(generation_fn, generation)
+np.save(room_fn, room)
