@@ -1,6 +1,7 @@
 import numpy as np
 from bisect import bisect_left
 from scipy.spatial.distance import cdist
+import sys
 
 
 def initialize_population(dataset, K, P):
@@ -39,7 +40,7 @@ def select(chromosomes, fitness):
     # select parents using the roulette wheel,
     # number of copies of each chromosome will be return
     # chromosomes are not changed in any way
-    P = chromosomes.shape[1]
+    P = chromosomes.shape[0]
     copy_factor = np.zeros(P)
     f_sum = np.sum(fitness)
     ind_ord = np.argsort(fitness)
@@ -49,7 +50,7 @@ def select(chromosomes, fitness):
         r = np.random.random()
         ind = bisect_left(prob, r)  # which probability is chosen
         ind = ind_ord[ind]  # which chromosome is chosen
-        copy_factor[i] += 1
+        copy_factor[ind] += 1
     return copy_factor
 
 
@@ -65,11 +66,12 @@ def crossover(generation, copy_factor, mu_c):
         if np.random.random() > mu_c:  # no crossover
             new_generation[i, :] = generation[p1, :]
             new_generation[i+1, :] = generation[p2, :]
-        ind = np.random.randint(0, length)  # swap elements starting from ind
-        new_generation[i, ind:] = generation[p1, ind:]
-        new_generation[i, :ind] = generation[p2, :ind]
-        new_generation[i+1, ind:] = generation[p2, ind:]
-        new_generation[i+1, :ind] = generation[p1, :ind]
+            continue
+        ind = np.random.randint(1, length-1)  # swap elements starting from ind
+        new_generation[i, :ind] = generation[p1, :ind]
+        new_generation[i, ind:] = generation[p2, ind:]
+        new_generation[i+1, :ind] = generation[p2, :ind]
+        new_generation[i+1, ind:] = generation[p1, ind:]
 
     return new_generation
 
@@ -82,7 +84,7 @@ def mutation(chromosomes, mu_m):
             continue
         ind = np.random.randint(0, length)  # which position is mutated
         delta = np.random.rand()
-        sign = 1 - 2 * (np.random.rand() >= 1/2)
+        sign = 1 - 2 * (np.random.rand() > 1/2)
         prev_value = chromosomes[i][ind]
         chromosomes[i][ind] = 2 * delta * (prev_value or 1) * sign
 
@@ -106,22 +108,33 @@ def random_dataset(n, dim):
     return 10 * np.random.rand(n, dim)
 
 
-K = 4  # number of clusters
-P = 100  # population size
-dim = 3
-n = 1000
+if len(sys.argv) > 1 and len(sys.argv) < 4:
+    print('Either run with no paramenters to generate a dataset'
+          ' or provide: dataset_fn K P')
+    sys.exit(1)
 
-dataset = clustered_dataset(n, dim, K)
-# data_fn = "dataset_2D_3K.npy"
-# dataset = np.load(data_fn)
+if len(sys.argv) > 1:
+    dataset = np.load(sys.argv[1])
+    K = int(sys.argv[2])
+    P = int(sys.argv[3])
+    n, dim = dataset.shape
+else:
+    K = 3  # number of clusters
+    P = 100  # population size
+    dim = 2
+    n = 1000
+    dataset = clustered_dataset(n, dim, K)
 
 steps = 100  # number of generations
 mu_c = 0.8  # probability of a crossover
-mu_m = 0.001  # probability of a mutation
+mu_m = 0.01  # probability of a mutation
 
 best_fitness = 0
 best_individual = None
 avg_fitness = np.zeros(steps)
+
+print('GA with K = %d, P = %d, n = %d, dim = %d, steps = %d, mu_c = %.3f,'
+      ' mu_m = %.3f' % (K, P, n, dim, steps, mu_c, mu_m))
 
 generation = initialize_population(dataset, K, P)
 for t in range(0, steps):
