@@ -108,6 +108,31 @@ def random_dataset(n, dim):
     return 10 * np.random.rand(n, dim)
 
 
+def ga_clustering(dataset, K, P, steps, mu_c, mu_m):
+    best_fitness = 0
+    best_individual = None
+    avg_fitness = np.zeros(steps)
+
+    print('GA with K = %d, P = %d, n = %d, dim = %d, steps = %d, mu_c = %.3f,'
+          ' mu_m = %.3f' % (K, P, n, dim, steps, mu_c, mu_m))
+
+    generation = initialize_population(dataset, K, P)
+    for t in range(0, steps):
+        fitness = population_fitness(generation, dataset, K)
+        avg_fitness[t] = np.average(fitness)
+        if (t % 10 == 0):
+            print("Avg fitness:", avg_fitness[t])
+        ind = np.argmax(fitness)
+        if fitness[ind] > best_fitness:
+            best_fitness = fitness[ind]
+            best_individual = np.copy(generation[ind, :])
+        copy_factor = select(generation, fitness)
+        generation = crossover(generation, copy_factor, mu_c)
+        mutation(generation, mu_m)
+
+    return (avg_fitness, best_fitness, best_individual, generation)
+
+
 if len(sys.argv) > 1 and len(sys.argv) < 4:
     print('Either run with no paramenters to generate a dataset'
           ' or provide: dataset_fn K P')
@@ -129,34 +154,17 @@ steps = 100  # number of generations
 mu_c = 0.8  # probability of a crossover
 mu_m = 0.01  # probability of a mutation
 
-best_fitness = 0
-best_individual = None
-avg_fitness = np.zeros(steps)
+(avg_fitness, best_fitness, best_individual, generation) =\
+    ga_clustering(dataset, K, P, steps, mu_c, mu_m)
 
-print('GA with K = %d, P = %d, n = %d, dim = %d, steps = %d, mu_c = %.3f,'
-      ' mu_m = %.3f' % (K, P, n, dim, steps, mu_c, mu_m))
-
-generation = initialize_population(dataset, K, P)
-for t in range(0, steps):
-    fitness = population_fitness(generation, dataset, K)
-    avg_fitness[t] = np.average(fitness)
-    if (t % 10 == 0):
-        print("Avg fitness:", avg_fitness[t])
-    ind = np.argmax(fitness)
-    if fitness[ind] > best_fitness:
-        best_fitness = fitness[ind]
-        best_individual = np.copy(generation[ind, :])
-    copy_factor = select(generation, fitness)
-    generation = crossover(generation, copy_factor, mu_c)
-    mutation(generation, mu_m)
-
+M = 1/best_fitness  # curly M of the best individual
 
 best_ind_fn = "best_individual.npy"
 avg_fitness_fn = "avg_fitness.npy"
 generation_fn = "generation.npy"
 dataset_fn = "dataset.npy"
 
-print("Score of the best individual:", best_fitness)
+print("Score of the best individual:", best_fitness, " curly M =", M)
 
 print("Saving results in %s, %s, %s, %s" %
       (best_ind_fn, avg_fitness_fn, generation_fn, dataset_fn))
