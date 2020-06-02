@@ -92,11 +92,11 @@ def mutation(chromosomes, mu_m):
 def clustered_dataset(n, dim, K):
     dataset = np.zeros((n, dim))
     rand = np.random.rand(n, dim) + 1
-    ind = np.zeros(K)
-    ind[1:K-1] = np.random.randint(1, n, K-2)
-    ind[K-1] = n
+    ind = np.zeros(K+1)
+    ind[1:K] = np.random.randint(1, n, K-1)
+    ind[K] = n
     ind = np.sort(ind).astype(int)
-    for i in range(1, K):
+    for i in range(1, K+1):
         d = np.random.randint(1, 10)
         R = d * (np.random.rand(1, dim) + 1)
         dataset[ind[i-1]:ind[i], :] = R +\
@@ -119,9 +119,9 @@ if len(sys.argv) > 1:
     P = int(sys.argv[3])
     n, dim = dataset.shape
 else:
-    K = 3  # number of clusters
+    K = 2  # number of clusters
     P = 100  # population size
-    dim = 2
+    dim = 3
     n = 1000
     dataset = clustered_dataset(n, dim, K)
 
