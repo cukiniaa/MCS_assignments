@@ -1,7 +1,7 @@
 import numpy as np
 from bisect import bisect_left
 from scipy.spatial.distance import cdist
-import sys
+from sklearn.datasets import make_blobs, make_moons
 
 
 def initialize_population(dataset, K, P):
@@ -54,7 +54,7 @@ def select(chromosomes, fitness):
     return copy_factor
 
 
-def crossover(generation, copy_factor, mu_c):
+def single_point_crossover(generation, copy_factor, mu_c):
     P, length = generation.shape
     new_generation = np.zeros((P, length))
     parent_index = np.add.accumulate(copy_factor)
@@ -89,26 +89,33 @@ def mutation(chromosomes, mu_m):
         chromosomes[i][ind] = 2 * delta * (prev_value or 1) * sign
 
 
-def clustered_dataset(n, dim, K):
-    dataset = np.zeros((n, dim))
-    rand = np.random.rand(n, dim) + 1
-    ind = np.zeros(K+1)
-    ind[1:K] = np.random.randint(1, n, K-1)
-    ind[K] = n
-    ind = np.sort(ind).astype(int)
-    for i in range(1, K+1):
-        d = np.random.randint(1, 10)
-        R = d * (np.random.rand(1, dim) + 1)
-        dataset[ind[i-1]:ind[i], :] = R +\
-                d * (1 + np.random.rand()) * rand[ind[i-1]:ind[i], :]
-    return dataset
+def clustered_dataset(n, dim, centers, moons=False):
+    # centers can be either integer K or a list of centers coords
+    # return make_blobs(n_samples=n, n_features=dim,
+    if moons:
+        return make_moons(n, noise=0.1)
+    return make_blobs(n_samples=n, n_features=dim,
+                      centers=centers, return_centers=True)
+
+
+def dataset_with_noise(n, dim, centers, noise=0.1):
+    N = int((1 - noise) * n)
+    d = np.zeros((n, dim))
+    cl = np.zeros(n)
+    (d[:N, :], cl[:N], c) = make_blobs(n_samples=N, n_features=dim,
+                                       centers=centers, return_centers=True)
+    d[N:, :] = -10 + 20 * np.random.rand(n-N, dim)
+    cl[N:] = c.shape[0] + 1
+    return (d, cl, c)
 
 
 def random_dataset(n, dim):
     return 10 * np.random.rand(n, dim)
 
 
-def ga_clustering(dataset, K, P, steps, mu_c, mu_m):
+def ga_clustering(dataset, K, P, steps, mu_c, mu_m,
+                  crossover_fn=single_point_crossover):
+    n, dim = dataset.shape
     best_fitness = 0
     best_individual = None
     avg_fitness = np.zeros(steps)
@@ -127,49 +134,7 @@ def ga_clustering(dataset, K, P, steps, mu_c, mu_m):
             best_fitness = fitness[ind]
             best_individual = np.copy(generation[ind, :])
         copy_factor = select(generation, fitness)
-        generation = crossover(generation, copy_factor, mu_c)
+        generation = crossover_fn(generation, copy_factor, mu_c)
         mutation(generation, mu_m)
 
     return (avg_fitness, best_fitness, best_individual, generation)
-
-
-if len(sys.argv) > 1 and len(sys.argv) < 4:
-    print('Either run with no paramenters to generate a dataset'
-          ' or provide: dataset_fn K P')
-    sys.exit(1)
-
-if len(sys.argv) > 1:
-    dataset = np.load(sys.argv[1])
-    K = int(sys.argv[2])
-    P = int(sys.argv[3])
-    n, dim = dataset.shape
-else:
-    K = 2  # number of clusters
-    P = 100  # population size
-    dim = 3
-    n = 1000
-    dataset = clustered_dataset(n, dim, K)
-
-steps = 100  # number of generations
-mu_c = 0.8  # probability of a crossover
-mu_m = 0.01  # probability of a mutation
-
-(avg_fitness, best_fitness, best_individual, generation) =\
-    ga_clustering(dataset, K, P, steps, mu_c, mu_m)
-
-M = 1/best_fitness  # curly M of the best individual
-
-best_ind_fn = "best_individual.npy"
-avg_fitness_fn = "avg_fitness.npy"
-generation_fn = "generation.npy"
-dataset_fn = "dataset.npy"
-
-print("Score of the best individual:", best_fitness, " curly M =", M)
-
-print("Saving results in %s, %s, %s, %s" %
-      (best_ind_fn, avg_fitness_fn, generation_fn, dataset_fn))
-
-np.save(best_ind_fn, best_individual)
-np.save(avg_fitness_fn, avg_fitness)
-np.save(generation_fn, generation)
-np.save(dataset_fn, dataset)
