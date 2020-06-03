@@ -1,0 +1,13 @@
+GA with K = 5, P = 100, n = 1000, dim = 3, steps = 100, mu_c = 0.800, mu_m = 0.010
+Avg fitness: 0.0003284019409470443
+Avg fitness: 0.00044786529622006555
+Avg fitness: 0.0004797735795632411
+Avg fitness: 0.000464279580598824
+Avg fitness: 0.0005385120509733119
+Avg fitness: 0.0005573517105745136
+Avg fitness: 0.0005275695984406155
+Avg fitness: 0.0006104842145421425
+Avg fitness: 0.0006268918889700364
+Avg fitness: 0.0006268634303097151
+Score of the best individual: 0.0006268918889700366  curly M = 1595.1713805756335
+Saving results in best_individual.npy, avg_fitness.npy, generation.npy, dataset.npy
