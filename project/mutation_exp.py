@@ -1,6 +1,10 @@
-from ga_clustering import ga_clustering, clustered_dataset, dataset_with_noise
+from ga_cluster  import clustered_dataset, initialize_population, population_fitness, select, crossover,mutation
+import random
 import numpy as np
+from bisect import bisect_left
+from scipy.spatial.distance import cdist
 import sys
+import matplotlib.pyplot as plt
 
 
 if len(sys.argv) > 1 and len(sys.argv) < 4:
@@ -14,47 +18,64 @@ if len(sys.argv) > 1:
     P = int(sys.argv[3])
     n, dim = dataset.shape
 else:
-    K = 10  # number of clusters
+    K = 2  # number of clusters
     P = 100  # population size
-    dim = 2
+    dim = 3
     n = 1000
-    # (dataset, clusters, centers) = clustered_dataset(n, dim, K)
-    (dataset, clusters) = dataset_with_noise(n, dim, K, noise=0.2)
-    #dataset, _ = clustered_dataset(n, dim, K, True)  # moon-like data
+    dataset = clustered_dataset(n, dim, K)
 
-steps = 100  # number of generations
+steps = 100 # number of generations
 mu_c = 0.8  # probability of a crossover
 
-#generate list to calculate the probability of mutation
-#mu_m=np.linspace(0.001, 0.2, num=10)
-mu_m=np.arange(0.001, 0.2, 0.01)
-mu_m=np.sort(mu_m)
-mu_count=mu_m.shape[0]
-print(mu_m)
-print(mu_count)
-n_tries=10;
+#vary the mutation rate by creating a mu_m list
 
-M=np.zeros((mu_count, n_tries))
-for i in range(mu_count):
-   for j in range(n_tries):
-      (avg_fitness, best_fitness, best_individual, generation) = ga_clustering(dataset, K, P, steps, mu_c, mu_m[i])
-      M[i][j] = 1/best_fitness
+mut_exp=20
+prob=[]
+for i in range(mut_exp):
+    r=random.uniform(0,1)  #make it smaller
+    prob.append(r)
+    
+mu_m=sorted(list(set(prob)))
+best_fitness = 0
+best_individual = None
+avg_fitness = np.zeros(steps)
 
-#print(M)
-ave_row=np.zeros(mu_count)
-for i in range(mu_count):
-    ave_row[i]=(np.sum(M, axis=1))[i]/n_tries
+generation = initialize_population(dataset, K, P)
+fit=[]
 
-print(ave_row)
+for i in mu_m:
+  
+    for t in range(0, steps):
+        fitness = population_fitness(generation, dataset, K)[0]
+        avg_fitness[t] = np.average(fitness)
+        #if (t % 10 == 0):
+            #print("Avg fitness:", avg_fitness[t])
+        ind = np.argmax(fitness)
+        if fitness[ind] > best_fitness:
+            best_fitness = fitness[ind]
+            best_individual = np.copy(generation[ind, :])
+        copy_factor = select(generation, fitness)
+        generation = crossover(generation, copy_factor, mu_c)
+        mutation(generation,i)
+    fit.append(best_fitness)
 
-sum1=0
-for j in range(n_tries):
-    sum1+=M[0][j]
-print(sum1)
-np.save("M",M)
+np.save()
+for i in range(len(mu_m)):
+    print("fitness ", fit[i], "mutation rate", mu_m[i])
 
 
 
 
 
+plt.xlabel('Probability of Mutation')
+plt.ylabel('Max Average Fitness ')
 
+
+
+
+
+plt.show()
+
+
+
+    
