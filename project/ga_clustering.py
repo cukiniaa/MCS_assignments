@@ -9,7 +9,6 @@ def initialize_population(dataset, K, P):
     ind = np.random.randint(0, N, K*P)
     return dataset[ind, :].reshape(P, dim*K)
 
-
 def population_fitness(chromosomes, dataset, K):
     P = chromosomes.shape[0]
     N, dim = dataset.shape
@@ -35,7 +34,6 @@ def population_fitness(chromosomes, dataset, K):
         fitness[i] = 1/M
     return fitness
 
-
 def select(chromosomes, fitness):
     # select parents using the roulette wheel,
     # number of copies of each chromosome will be return
@@ -52,7 +50,6 @@ def select(chromosomes, fitness):
         ind = ind_ord[ind]  # which chromosome is chosen
         copy_factor[ind] += 1
     return copy_factor
-
 
 def single_point_crossover(generation, copy_factor, mu_c):
     P, length = generation.shape
@@ -75,7 +72,34 @@ def single_point_crossover(generation, copy_factor, mu_c):
 
     return new_generation
 
-
+def double_point_crossover(generation, copy_factor, mu_c):
+    P, length = generation.shape
+    new_generation = np.zeros((P, length))
+    parent_index = np.add.accumulate(copy_factor)
+    
+    for i in range(0, P - P % 2, 2):
+        [r1, r2] = np.random.randint(1, P+1, 2)
+        p1 = bisect_left(parent_index, r1)
+        p2 = bisect_left(parent_index, r2)
+        if np.random.random() > mu_c:  # no crossover
+            new_generation[i, :] = generation[p1, :]
+            new_generation[i+1, :] = generation[p2, :]
+            continue
+        ind_1=np.random.randint(1, length-1)
+        ind_2=np.random.randint(1, length-1)
+        while ind_1 > ind_2:
+            ind_2=np.random.randint(1, length-1)
+       
+        new_generation[i, :ind_1] = generation[p1, :ind_1]
+        new_generation[i, ind_1:] = generation[p2, ind_1:]
+        new_generation[i, ind_2:] = generation[p1, ind_2:]
+        
+        new_generation[i+1, :ind_1] = generation[p2, :ind_1]
+        new_generation[i+1, ind_1:] = generation[p1, ind_1:]
+        new_generation[i+1, ind_2:] = generation[p2, ind_2:]
+    return new_generation
+        
+            
 def mutation(chromosomes, mu_m):
     # in place mutation with probability mu_m
     P, length = chromosomes.shape
@@ -89,24 +113,23 @@ def mutation(chromosomes, mu_m):
         chromosomes[i][ind] = 2 * delta * (prev_value or 1) * sign
 
 
+
+
 def clustered_dataset(n, dim, centers, moons=False):
     # centers can be either integer K or a list of centers coords
     # return make_blobs(n_samples=n, n_features=dim,
     if moons:
         return make_moons(n, noise=0.1)
-    return make_blobs(n_samples=n, n_features=dim,
-                      centers=centers, return_centers=True)
+    return make_blobs(n_samples=n, n_features=dim,centers=centers)
 
 
 def dataset_with_noise(n, dim, centers, noise=0.1):
     N = int((1 - noise) * n)
     d = np.zeros((n, dim))
     cl = np.zeros(n)
-    (d[:N, :], cl[:N], c) = make_blobs(n_samples=N, n_features=dim,
-                                       centers=centers, return_centers=True)
+    (d[:N, :], cl[:N]) = make_blobs(n_samples=N, n_features=dim, centers=centers)
     d[N:, :] = -10 + 20 * np.random.rand(n-N, dim)
-    cl[N:] = c.shape[0] + 1
-    return (d, cl, c)
+    return (d, cl)
 
 
 def random_dataset(n, dim):
@@ -114,7 +137,7 @@ def random_dataset(n, dim):
 
 
 def ga_clustering(dataset, K, P, steps, mu_c, mu_m,
-                  crossover_fn=single_point_crossover,
+                  crossover_fn=double_point_crossover,
                   printing=False):
     n, dim = dataset.shape
     best_fitness = 0
@@ -140,3 +163,22 @@ def ga_clustering(dataset, K, P, steps, mu_c, mu_m,
         mutation(generation, mu_m)
 
     return (avg_fitness, best_fitness, best_individual, generation)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
