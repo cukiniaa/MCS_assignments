@@ -13,7 +13,7 @@ if len(sys.argv) > 1:
     P = int(sys.argv[3])
     n, dim = dataset.shape
 else:
-    K = 6  # number of clusters
+    K = 10  # number of clusters
     P = 100  # population size
     dim = 2
     n = 1000
@@ -26,7 +26,7 @@ mu_c = 0.8  # probability of a crossover
 mu_m = 0.01  # probability of a mutation
 
 (avg_fitness, best_fitness, best_individual, generation) =\
-    ga_clustering(dataset, K, P, steps, mu_c, mu_m)
+    ga_clustering(dataset, K, P, steps, mu_c, mu_m, printing=True)
 
 M = 1/best_fitness  # curly M of the best individual
 

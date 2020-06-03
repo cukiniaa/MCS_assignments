@@ -114,20 +114,22 @@ def random_dataset(n, dim):
 
 
 def ga_clustering(dataset, K, P, steps, mu_c, mu_m,
-                  crossover_fn=single_point_crossover):
+                  crossover_fn=single_point_crossover,
+                  printing=False):
     n, dim = dataset.shape
     best_fitness = 0
     best_individual = None
     avg_fitness = np.zeros(steps)
 
-    print('GA with K = %d, P = %d, n = %d, dim = %d, steps = %d, mu_c = %.3f,'
-          ' mu_m = %.3f' % (K, P, n, dim, steps, mu_c, mu_m))
+    if printing:
+        print('GA with K = %d, P = %d, n = %d, dim = %d, steps = %d,'
+              ' mu_c = %.3f, mu_m = %.3f' % (K, P, n, dim, steps, mu_c, mu_m))
 
     generation = initialize_population(dataset, K, P)
     for t in range(0, steps):
         fitness = population_fitness(generation, dataset, K)
         avg_fitness[t] = np.average(fitness)
-        if (t % 10 == 0):
+        if (printing and t % 10 == 0):
             print("Avg fitness:", avg_fitness[t])
         ind = np.argmax(fitness)
         if fitness[ind] > best_fitness:
