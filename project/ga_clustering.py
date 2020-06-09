@@ -10,15 +10,16 @@ def initialize_population(dataset, K, P):
     ind = np.random.randint(0, N, K*P)
     return dataset[ind, :].reshape(P, dim*K)
 
+
 def population_fitness(chromosomes, dataset, K):
     P = chromosomes.shape[0]
     N, dim = dataset.shape
     fitness = np.zeros(P)
     for i in range(0, P):
         centers = chromosomes[i, :].reshape(K, dim)  # of the i-th individual
-        distances = cdist(dataset, centers)  # distances of each point to each center
-        clusters = np.argmin(distances, axis=1)  # each point gets assigned a cluster index
-        new_centers = np.copy(centers)  # will hold mean points of respective clusters
+        distances = cdist(dataset, centers)  # dist of each point to each c
+        clusters = np.argmin(distances, axis=1)  # each x gets assigned a c
+        new_centers = np.copy(centers)  # for mean points of respective cs
 
         M = 0
         for j in range(0, K):
@@ -27,13 +28,14 @@ def population_fitness(chromosomes, dataset, K):
             if c_dataset.shape[0] == 0:
                 continue
             c_j = np.sum(c_dataset, axis=0)
-            new_centers[j, :] = c_j / c_dataset.shape[0]  # mean point of cluster j
+            new_centers[j, :] = c_j / c_dataset.shape[0]  # mean point of c_j
             M += np.sum(np.linalg.norm(c_dataset - new_centers[j, :], axis=1))
             # sum of distances from the new center to all points in cluster j
 
         chromosomes[i, :] = new_centers.flatten()  # update chromosome
         fitness[i] = 1/M
     return fitness
+
 
 def roulette_wheel_selection(chromosomes, fitness):
     # select parents using the roulette wheel,
@@ -51,6 +53,7 @@ def roulette_wheel_selection(chromosomes, fitness):
         ind = ind_ord[ind]  # which chromosome is chosen
         copy_factor[ind] += 1
     return copy_factor
+
 
 def tournament_selection(chromosomes, fitness, k=2):
     # select parents using k-fold tournament selection,
@@ -94,12 +97,15 @@ def single_point_crossover(generation, copy_factor, mu_c, fitness,
         [r1, r2] = np.random.randint(1, P+1, 2)
         p1 = bisect_left(parent_index, r1)
         p2 = bisect_left(parent_index, r2)
+
         if adaptive_params:
             mu_c = adaptive_mu_c(fitness[[p1, p2]], f_max, f_avg)
+
         if np.random.random() > mu_c:  # no crossover
             new_generation[i, :] = generation[p1, :]
             new_generation[i+1, :] = generation[p2, :]
             continue
+
         ind = np.random.randint(1, length-1)  # swap elements starting from ind
         new_generation[i, :ind] = generation[p1, :ind]
         new_generation[i, ind:] = generation[p2, ind:]
@@ -108,8 +114,9 @@ def single_point_crossover(generation, copy_factor, mu_c, fitness,
 
     return new_generation
 
-def double_point_crossover(generation, copy_factor, mu_c, fitness,
-                           adaptive_params=False):
+
+def two_point_crossover(generation, copy_factor, mu_c, fitness,
+                        adaptive_params=False):
     P, length = generation.shape
     new_generation = np.zeros((P, length))
     parent_index = np.add.accumulate(copy_factor)
@@ -122,113 +129,145 @@ def double_point_crossover(generation, copy_factor, mu_c, fitness,
         [r1, r2] = np.random.randint(1, P+1, 2)
         p1 = bisect_left(parent_index, r1)
         p2 = bisect_left(parent_index, r2)
+
         if adaptive_params:
             mu_c = adaptive_mu_c(fitness[[p1, p2]], f_max, f_avg)
+
         if np.random.random() > mu_c:  # no crossover
             new_generation[i, :] = generation[p1, :]
             new_generation[i+1, :] = generation[p2, :]
             continue
-        ind_1=np.random.randint(1, length-1)
-        ind_2=np.random.randint(1, length-1)
+
+        ind_1 = np.random.randint(1, length-1)
+        ind_2 = np.random.randint(1, length-1)
         if ind_1 > ind_2:
             ind_1, ind_2 = ind_2, ind_1
-       
+
         new_generation[i, :ind_1] = generation[p1, :ind_1]
-        new_generation[i, ind_1:] = generation[p2, ind_1:]
+        new_generation[i, ind_1:ind_2] = generation[p2, ind_1:ind_2]
         new_generation[i, ind_2:] = generation[p1, ind_2:]
-        
+
         new_generation[i+1, :ind_1] = generation[p2, :ind_1]
-        new_generation[i+1, ind_1:] = generation[p1, ind_1:]
+        new_generation[i+1, ind_1:ind_2] = generation[p1, ind_1:ind_2]
         new_generation[i+1, ind_2:] = generation[p2, ind_2:]
+
     return new_generation
 
 
-def uniform_crossover(generation, copy_factor, mu_c):
-    #Each gene is selected randomly
-    #from one of the corresponding genes of the parent chromosomes.
-    #Use of tossing a coin as am example technique
-    p=0.4
+def uniform_crossover(generation, copy_factor, mu_c, fitness,
+                      adaptive_params=False):
+    # Each gene is selected at random
+    # from one of the corresponding genes of the parent chromosomes.
+    # Use of tossing a coin as am example technique
+    p = 0.4
     P, length = generation.shape
     new_generation = np.zeros((P, length))
     parent_index = np.add.accumulate(copy_factor)
+
+    if adaptive_params:
+        f_max = np.max(fitness)
+        f_avg = np.average(fitness)
 
     for i in range(0, P - P % 2, 2):
         [r1, r2] = np.random.randint(1, P+1, 2)
         p1 = bisect_left(parent_index, r1)
         p2 = bisect_left(parent_index, r2)
+
+        if adaptive_params:
+            mu_c = adaptive_mu_c(fitness[[p1, p2]], f_max, f_avg)
+
         if np.random.random() > mu_c:  # no crossover
             new_generation[i, :] = generation[p1, :]
             new_generation[i+1, :] = generation[p2, :]
             continue
-        #generate a random number u E (0,1)
+
         for j in range(length):
-            r=random.uniform(0,1)
-            if r<p:
+            r = random.uniform(0, 1)
+            if r < p:
                 new_generation[i][j] = generation[p1][j]
                 new_generation[i+1][j] = generation[p2][j]
-                
             else:
                 new_generation[i][j] = generation[p2][j]
                 new_generation[i+1][j] = generation[p1][j]
 
     return new_generation
 
-def average_crossover(generation, copy_factor, mu_c):
-    #p1 and p2 generate c1
-    #each gene in a child is taken by averaging genes from both parents.
+
+def average_crossover(generation, copy_factor, mu_c, fitness,
+                      adaptive_params=False):
+    # p1 and p2 generate c1
+    # each gene in a child is taken by averaging genes from both parents.
     P, length = generation.shape
     new_generation = np.zeros((P, length))
     parent_index = np.add.accumulate(copy_factor)
-    p=0.4
-    for i in range(0, P ):
+
+    if adaptive_params:
+        f_max = np.max(fitness)
+        f_avg = np.average(fitness)
+
+    p = 0.4
+    for i in range(0, P):
         [r1, r2] = np.random.randint(1, P+1, 2)
         p1 = bisect_left(parent_index, r1)
         p2 = bisect_left(parent_index, r2)
+
+        if adaptive_params:
+            mu_c = adaptive_mu_c(fitness[[p1, p2]], f_max, f_avg)
+
         if np.random.random() > mu_c:  # no crossover
-            r=random.uniform(0,1)
-            if r<p:
+            r = random.uniform(0, 1)
+            if r < p:
                 new_generation[i, :] = generation[p1, :]
             else:
                 new_generation[i, :] = generation[p2, :]
             continue
-        for j in range(length):
-            new_generation[i][j] = (generation[p1][j]+generation[p2][j])/2
+
+        new_generation[i][:] = (generation[p1][:] + generation[p2][:]) / 2
+
     return new_generation
 
-def heuristic_crossover(generation, copy_factor, mu_c,fitness):
+
+def heuristic_crossover(generation, copy_factor, mu_c, fitness,
+                        adaptive_params=False):
     P, length = generation.shape
     new_generation = np.zeros((P, length))
     parent_index = np.add.accumulate(copy_factor)
-    p=0.4
-    #fitness=np.zeros(P)
-    for i in range(0, P ):
+
+    if adaptive_params:
+        f_max = np.max(fitness)
+        f_avg = np.average(fitness)
+
+    p = 0.4
+    for i in range(0, P):
         [r1, r2] = np.random.randint(1, P+1, 2)
         p1 = bisect_left(parent_index, r1)
         p2 = bisect_left(parent_index, r2)
+
+        if adaptive_params:
+            mu_c = adaptive_mu_c(fitness[[p1, p2]], f_max, f_avg)
+
         if np.random.random() > mu_c:  # no crossover
-            r=random.uniform(0,1)
-            if r<p:
+            r = random.uniform(0, 1)
+            if r < p:
                 new_generation[i, :] = generation[p1, :]
             else:
                 new_generation[i, :] = generation[p2, :]
             continue
-        #for j in range(length):
-            #w=0.5
-            #if generation[p1][j] < generation[p2][j]:
-                #new_generation[i][j]=generation[p1][j]+w*(generation[p2][j]-generation[p1][j])
-            #else:
-               # new_generation[i][j]=generation[p1][j]
-        w=0.9
-        if fitness[p1]>fitness[p2]:
-            new_generation[i,:]=w*(generation[p1, :]-generation[p2, :])+generation[p1, :]
+
+        w = 0.15
+        if fitness[p1] > fitness[p2]:
+            new_generation[i, :] = w * (generation[p1, :] - generation[p2, :])\
+                    + generation[p1, :]
         else:
-            new_generation[i,:]=w*(generation[p2, :]-generation[p1, :])+generation[p1, :]
-    print(fitness)
+            new_generation[i, :] = w * (generation[p2, :] - generation[p1, :])\
+                    + generation[p1, :]
+
     return new_generation
 
 
 def mutation(chromosomes, mu_m, fitness, adaptive_params=False):
-    # in place mutation with probability mu_m
+    # in place mutation with probability mu_m, or adaptive mu_m
+    # depending on fitness if adaptive_params set to True
     P, length = chromosomes.shape
 
     if adaptive_params:
@@ -246,19 +285,15 @@ def mutation(chromosomes, mu_m, fitness, adaptive_params=False):
         prev_value = chromosomes[i][ind]
         chromosomes[i][ind] = 2 * delta * (prev_value or 1) * sign
 
-def clustered_dataset(n, dim, centers, moons=False):
-    # centers can be either integer K or a list of centers coords
-    # return make_blobs(n_samples=n, n_features=dim,
-    if moons:
-        return make_moons(n, noise=0.1)
-    return make_blobs(n_samples=n, n_features=dim, centers=centers)
 
-
-def dataset_with_noise(n, dim, centers, noise=0.1):
+def dataset_with_noise(n, dim, centers, noise=0.1, moons=False):
     N = int((1 - noise) * n)
     d = np.zeros((n, dim))
     cl = np.zeros(n)
-    (d[:N, :], cl[:N]) = make_blobs(n_samples=N, n_features=dim, centers=centers)
+    if moons:
+        return make_moons(n, noise=noise)
+    (d[:N, :], cl[:N]) = make_blobs(n_samples=N, n_features=dim,
+                                    centers=centers)
     d[N:, :] = -10 + 20 * np.random.rand(n-N, dim)
     return (d, cl)
 
