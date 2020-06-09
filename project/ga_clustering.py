@@ -176,12 +176,12 @@ def heuristic_crossover(generation, copy_factor, mu_c,fitness):
                 #new_generation[i][j]=generation[p1][j]+w*(generation[p2][j]-generation[p1][j])
             #else:
                # new_generation[i][j]=generation[p1][j]
-        w=0.9
+        w=0.15
         if fitness[p1]>fitness[p2]:
             new_generation[i,:]=w*(generation[p1, :]-generation[p2, :])+generation[p1, :]
         else:
-            new_generation[i,:]=w*(generation[p2, :]-generation[p1, :])+generation[p1, :]
-    print(fitness)
+            new_generation[i,:]=w*(generation[p2, :]-generation[p1, :])+generation[p2, :]
+    #print(fitness)
     return new_generation
             
             
