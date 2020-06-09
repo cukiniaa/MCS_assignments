@@ -260,7 +260,7 @@ def heuristic_crossover(generation, copy_factor, mu_c, fitness,
                     + generation[p1, :]
         else:
             new_generation[i, :] = w * (generation[p2, :] - generation[p1, :])\
-                    + generation[p1, :]
+                    + generation[p2, :]
 
     return new_generation
 
