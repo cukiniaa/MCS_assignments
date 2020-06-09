@@ -1,4 +1,5 @@
 import numpy as np
+import random
 from bisect import bisect_left
 from scipy.spatial.distance import cdist
 from sklearn.datasets import make_blobs, make_moons
@@ -87,8 +88,8 @@ def double_point_crossover(generation, copy_factor, mu_c):
             continue
         ind_1=np.random.randint(1, length-1)
         ind_2=np.random.randint(1, length-1)
-        while ind_1 > ind_2:
-            ind_2=np.random.randint(1, length-1)
+        if ind_1 > ind_2:
+            ind_1, ind_2 = ind_2, ind_1
        
         new_generation[i, :ind_1] = generation[p1, :ind_1]
         new_generation[i, ind_1:] = generation[p2, ind_1:]
@@ -98,7 +99,94 @@ def double_point_crossover(generation, copy_factor, mu_c):
         new_generation[i+1, ind_1:] = generation[p1, ind_1:]
         new_generation[i+1, ind_2:] = generation[p2, ind_2:]
     return new_generation
-        
+
+
+def uniform_crossover(generation, copy_factor, mu_c):
+    #Each gene is selected randomly
+    #from one of the corresponding genes of the parent chromosomes.
+    #Use of tossing a coin as am example technique
+    p=0.4
+    P, length = generation.shape
+    new_generation = np.zeros((P, length))
+    parent_index = np.add.accumulate(copy_factor)
+
+    for i in range(0, P - P % 2, 2):
+        [r1, r2] = np.random.randint(1, P+1, 2)
+        p1 = bisect_left(parent_index, r1)
+        p2 = bisect_left(parent_index, r2)
+        if np.random.random() > mu_c:  # no crossover
+            new_generation[i, :] = generation[p1, :]
+            new_generation[i+1, :] = generation[p2, :]
+            continue
+        #generate a random number u E (0,1)
+        for j in range(length):
+            r=random.uniform(0,1)
+            if r<p:
+                new_generation[i][j] = generation[p1][j]
+                new_generation[i+1][j] = generation[p2][j]
+                
+            else:
+                new_generation[i][j] = generation[p2][j]
+                new_generation[i+1][j] = generation[p1][j]
+
+    return new_generation
+
+def average_crossover(generation, copy_factor, mu_c):
+    #p1 and p2 generate c1
+    #each gene in a child is taken by averaging genes from both parents.
+    P, length = generation.shape
+    new_generation = np.zeros((P, length))
+    parent_index = np.add.accumulate(copy_factor)
+    p=0.4
+    for i in range(0, P ):
+        [r1, r2] = np.random.randint(1, P+1, 2)
+        p1 = bisect_left(parent_index, r1)
+        p2 = bisect_left(parent_index, r2)
+        if np.random.random() > mu_c:  # no crossover
+            r=random.uniform(0,1)
+            if r<p:
+                new_generation[i, :] = generation[p1, :]
+            else:
+                new_generation[i, :] = generation[p2, :]
+            continue
+        for j in range(length):
+            new_generation[i][j] = (generation[p1][j]+generation[p2][j])/2
+    return new_generation
+
+def heuristic_crossover(generation, copy_factor, mu_c,fitness):
+    P, length = generation.shape
+    new_generation = np.zeros((P, length))
+    parent_index = np.add.accumulate(copy_factor)
+    p=0.4
+    #fitness=np.zeros(P)
+    for i in range(0, P ):
+        [r1, r2] = np.random.randint(1, P+1, 2)
+        p1 = bisect_left(parent_index, r1)
+        p2 = bisect_left(parent_index, r2)
+        if np.random.random() > mu_c:  # no crossover
+            r=random.uniform(0,1)
+            if r<p:
+                new_generation[i, :] = generation[p1, :]
+            else:
+                new_generation[i, :] = generation[p2, :]
+            continue
+        #for j in range(length):
+            #w=0.5
+            #if generation[p1][j] < generation[p2][j]:
+                #new_generation[i][j]=generation[p1][j]+w*(generation[p2][j]-generation[p1][j])
+            #else:
+               # new_generation[i][j]=generation[p1][j]
+        w=0.9
+        if fitness[p1]>fitness[p2]:
+            new_generation[i,:]=w*(generation[p1, :]-generation[p2, :])+generation[p1, :]
+        else:
+            new_generation[i,:]=w*(generation[p2, :]-generation[p1, :])+generation[p1, :]
+    print(fitness)
+    return new_generation
+            
+            
+    
+          
             
 def mutation(chromosomes, mu_m):
     # in place mutation with probability mu_m
@@ -137,7 +225,7 @@ def random_dataset(n, dim):
 
 
 def ga_clustering(dataset, K, P, steps, mu_c, mu_m,
-                  crossover_fn=double_point_crossover,
+                  crossover_fn=heuristic_crossover,
                   printing=False):
     n, dim = dataset.shape
     best_fitness = 0
@@ -159,7 +247,7 @@ def ga_clustering(dataset, K, P, steps, mu_c, mu_m,
             best_fitness = fitness[ind]
             best_individual = np.copy(generation[ind, :])
         copy_factor = select(generation, fitness)
-        generation = crossover_fn(generation, copy_factor, mu_c)
+        generation = crossover_fn(generation, copy_factor, mu_c,fitness)
         mutation(generation, mu_m)
 
     return (avg_fitness, best_fitness, best_individual, generation)
