@@ -1,6 +1,6 @@
 import numpy as np
 from bisect import bisect_left
-from scipy.spatial.distance import cdist
+from scipy.spatial.distance import cdist, pdist
 from sklearn.datasets import make_blobs, make_moons
 
 
@@ -34,7 +34,7 @@ def population_fitness(chromosomes, dataset, K):
         fitness[i] = 1/M
     return fitness
 
-def select(chromosomes, fitness):
+def roulette_wheel_selection(chromosomes, fitness):
     # select parents using the roulette wheel,
     # number of copies of each chromosome will be return
     # chromosomes are not changed in any way
@@ -51,15 +51,50 @@ def select(chromosomes, fitness):
         copy_factor[ind] += 1
     return copy_factor
 
-def single_point_crossover(generation, copy_factor, mu_c):
+def tournament_selection(chromosomes, fitness, k=2):
+    # select parents using k-fold tournament selection,
+    # number of copies of each chromosome will be return
+    # chromosomes are not changed in any way
+    P = chromosomes.shape[0]
+    copy_factor = np.zeros(P)
+    for i in range(0, P):
+        selected = np.random.choice(P, size=k, replace=False)
+        winner = selected[np.argmax(fitness[selected])]
+        copy_factor[winner] += 1
+    return copy_factor
+
+
+def adaptive_mu_c(fitness_parents, f_max, f_avg):
+    k1, k3 = 1, 1
+    f_pr = np.max(fitness_parents)
+    if f_pr < f_avg:
+        return k3
+    return k1 * (f_max - f_pr) / (f_max - f_avg)
+
+
+def adaptive_mu_m(fitness_ind, f_max, f_avg):
+    k2, k4 = 0.5, 0.5
+    if fitness_ind < f_avg:
+        return k4
+    return k2 * (f_max - fitness_ind) / (f_max - f_avg)
+
+
+def single_point_crossover(generation, copy_factor, mu_c, fitness,
+                           adaptive_params=False):
     P, length = generation.shape
     new_generation = np.zeros((P, length))
     parent_index = np.add.accumulate(copy_factor)
+
+    if adaptive_params:
+        f_max = np.max(fitness)
+        f_avg = np.average(fitness)
 
     for i in range(0, P - P % 2, 2):
         [r1, r2] = np.random.randint(1, P+1, 2)
         p1 = bisect_left(parent_index, r1)
         p2 = bisect_left(parent_index, r2)
+        if adaptive_params:
+            mu_c = adaptive_mu_c(fitness[[p1, p2]], f_max, f_avg)
         if np.random.random() > mu_c:  # no crossover
             new_generation[i, :] = generation[p1, :]
             new_generation[i+1, :] = generation[p2, :]
@@ -72,15 +107,22 @@ def single_point_crossover(generation, copy_factor, mu_c):
 
     return new_generation
 
-def double_point_crossover(generation, copy_factor, mu_c):
+def double_point_crossover(generation, copy_factor, mu_c, fitness,
+                           adaptive_params=False):
     P, length = generation.shape
     new_generation = np.zeros((P, length))
     parent_index = np.add.accumulate(copy_factor)
-    
+
+    if adaptive_params:
+        f_max = np.max(fitness)
+        f_avg = np.average(fitness)
+
     for i in range(0, P - P % 2, 2):
         [r1, r2] = np.random.randint(1, P+1, 2)
         p1 = bisect_left(parent_index, r1)
         p2 = bisect_left(parent_index, r2)
+        if adaptive_params:
+            mu_c = adaptive_mu_c(fitness[[p1, p2]], f_max, f_avg)
         if np.random.random() > mu_c:  # no crossover
             new_generation[i, :] = generation[p1, :]
             new_generation[i+1, :] = generation[p2, :]
@@ -98,12 +140,19 @@ def double_point_crossover(generation, copy_factor, mu_c):
         new_generation[i+1, ind_1:] = generation[p1, ind_1:]
         new_generation[i+1, ind_2:] = generation[p2, ind_2:]
     return new_generation
-        
-            
-def mutation(chromosomes, mu_m):
+
+
+def mutation(chromosomes, mu_m, fitness, adaptive_params=False):
     # in place mutation with probability mu_m
     P, length = chromosomes.shape
+
+    if adaptive_params:
+        f_max = np.max(fitness)
+        f_avg = np.average(fitness)
+
     for i in range(0, P):
+        if adaptive_params:
+            mu_m = adaptive_mu_m(fitness[i], f_max, f_avg)
         if np.random.random() > mu_m:
             continue
         ind = np.random.randint(0, length)  # which position is mutated
@@ -112,15 +161,12 @@ def mutation(chromosomes, mu_m):
         prev_value = chromosomes[i][ind]
         chromosomes[i][ind] = 2 * delta * (prev_value or 1) * sign
 
-
-
-
 def clustered_dataset(n, dim, centers, moons=False):
     # centers can be either integer K or a list of centers coords
     # return make_blobs(n_samples=n, n_features=dim,
     if moons:
         return make_moons(n, noise=0.1)
-    return make_blobs(n_samples=n, n_features=dim,centers=centers)
+    return make_blobs(n_samples=n, n_features=dim, centers=centers)
 
 
 def dataset_with_noise(n, dim, centers, noise=0.1):
@@ -137,12 +183,18 @@ def random_dataset(n, dim):
 
 
 def ga_clustering(dataset, K, P, steps, mu_c, mu_m,
-                  crossover_fn=double_point_crossover,
-                  printing=False):
+                  crossover_fn=single_point_crossover,
+                  selection_fn=roulette_wheel_selection,
+                  adaptive_params=False, printing=False,
+                  termination_criterion=None):
     n, dim = dataset.shape
     best_fitness = 0
     best_individual = None
-    avg_fitness = np.zeros(steps)
+    best_step = 0
+    avg_fitness = np.empty(steps)
+    gen_similarity = np.empty(steps)
+    if not termination_criterion:
+        termination_criterion = steps
 
     if printing:
         print('GA with K = %d, P = %d, n = %d, dim = %d, steps = %d,'
@@ -152,33 +204,20 @@ def ga_clustering(dataset, K, P, steps, mu_c, mu_m,
     for t in range(0, steps):
         fitness = population_fitness(generation, dataset, K)
         avg_fitness[t] = np.average(fitness)
+        gen_similarity[t] = np.sum(pdist(generation))
         if (printing and t % 10 == 0):
             print("Avg fitness:", avg_fitness[t])
         ind = np.argmax(fitness)
         if fitness[ind] > best_fitness:
             best_fitness = fitness[ind]
             best_individual = np.copy(generation[ind, :])
-        copy_factor = select(generation, fitness)
-        generation = crossover_fn(generation, copy_factor, mu_c)
-        mutation(generation, mu_m)
+            best_step = t
+        elif (t - best_step) > termination_criterion:
+            break
+        copy_factor = selection_fn(generation, fitness)
+        generation = crossover_fn(generation, copy_factor, mu_c,
+                                  fitness, adaptive_params)
+        mutation(generation, mu_m, fitness, adaptive_params)
 
-    return (avg_fitness, best_fitness, best_individual, generation)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    return (avg_fitness[:t], gen_similarity[:t], best_fitness, best_individual,
+            generation, t)
